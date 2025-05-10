@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Dupliquer image verticalement</title>
+  <style>
+    body {
+      background: #1b1b1b;
+      color: white;
+      text-align: center;
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    input, button {
+      margin: 0.5em;
+      padding: 0.5em;
+    }
+    canvas {
+      margin-top: 1em;
+      image-rendering: pixelated;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <h1>Duplication verticale d'image (pixelisée)</h1>
+  <input type="file" id="imageInput" accept="image/*">
+  <input type="number" id="duplicateCount" value="1" min="1">
+  <button onclick="duplicateImage()">Dupliquer</button>
+  <button onclick="downloadCanvas()">Télécharger</button>
+  <br>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+
+    let originalImage = new Image();
+
+    document.getElementById("imageInput").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        originalImage = new Image();
+        originalImage.onload = () => {
+          duplicateImage(); // Affiche dès que chargée
+        };
+        originalImage.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function duplicateImage() {
+      const count = parseInt(document.getElementById("duplicateCount").value);
+      if (isNaN(count) || count < 1) return;
+      if (!originalImage.complete) return;
+
+      canvas.width = originalImage.width;
+      canvas.height = originalImage.height * count;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = 0; i < count; i++) {
+        ctx.drawImage(originalImage, 0, i * originalImage.height);
+      }
+    }
+
+    function downloadCanvas() {
+      const link = document.createElement("a");
+      link.download = "image_dupliquee.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+  </script>
+</body>
+</html>
