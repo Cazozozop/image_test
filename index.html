@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Dupliquer et animer une image</title>
+  <title>Dupliquer & GIF</title>
   <style>
     body {
       background: #1b1b1b;
@@ -18,7 +18,6 @@
     canvas {
       margin-top: 1em;
       image-rendering: pixelated;
-      background: transparent;
     }
     .gif-preview canvas {
       margin: 4px;
@@ -35,15 +34,14 @@
   <br>
   <canvas id="canvas"></canvas>
 
-  <hr style="margin: 3em 0;">
+  <hr>
 
-  <h2>Créer un GIF à partir d’une image découpée verticalement</h2>
+  <h2>Créer un GIF à partir de frames verticales</h2>
   <input type="file" id="gifInput" accept="image/*">
   <input type="number" id="gifDelay" value="200" min="10"> ms par frame
-  <button onclick="createGif()">Créer le GIF</button>
+  <button onclick="createGif()">Recréer le GIF</button>
   <button onclick="downloadGif()">Télécharger le GIF</button>
-  <div class="gif-preview" id="gifFramePreview"></div>
-  <br>
+  <div id="gifFramePreview"></div>
   <img id="gifResult" alt="GIF généré" style="margin-top: 1em; image-rendering: pixelated;" />
 
   <script src="https://unpkg.com/gif.js.optimized/dist/gif.js"></script>
@@ -53,17 +51,13 @@
     ctx.imageSmoothingEnabled = false;
 
     let originalImage = new Image();
-
     document.getElementById("imageInput").addEventListener("change", function(e) {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = function(event) {
         originalImage = new Image();
-        originalImage.onload = () => {
-          duplicateImage();
-        };
+        originalImage.onload = () => duplicateImage();
         originalImage.src = event.target.result;
       };
       reader.readAsDataURL(file);
@@ -71,14 +65,10 @@
 
     function duplicateImage() {
       const count = parseInt(document.getElementById("duplicateCount").value);
-      if (isNaN(count) || count < 1) return;
-      if (!originalImage.complete) return;
-
+      if (!originalImage.complete || isNaN(count) || count < 1) return;
       canvas.width = originalImage.width;
       canvas.height = originalImage.height * count;
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       for (let i = 0; i < count; i++) {
         ctx.drawImage(originalImage, 0, i * originalImage.height);
       }
@@ -91,78 +81,56 @@
       link.click();
     }
 
-    let gifImage = new Image();
     let gifFrames = [];
-    let gifReady = false;
-    const gifFramePreview = document.getElementById("gifFramePreview");
+    let gifImage = new Image();
     const gifResult = document.getElementById("gifResult");
+    const gifFramePreview = document.getElementById("gifFramePreview");
 
     document.getElementById("gifInput").addEventListener("change", function(e) {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = function(event) {
         gifImage = new Image();
         gifImage.onload = () => {
-          splitImageByRows();
+          splitImageAndCreateGif(); // créer automatiquement
         };
         gifImage.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
 
-    function splitImageByRows() {
+    function splitImageAndCreateGif() {
+      const w = gifImage.width;
+      const h = gifImage.height;
+      const frameCount = Math.floor(h / w);
+
       gifFrames = [];
-      gifReady = false;
-
-      const width = gifImage.width;
-      const height = gifImage.height;
-      const frameCount = Math.floor(height / width);
-
-      if (frameCount < 1) {
-        alert("Image non compatible. Hauteur doit être multiple exact de la largeur.");
-        return;
-      }
-
       gifFramePreview.innerHTML = "";
 
       for (let i = 0; i < frameCount; i++) {
         const frameCanvas = document.createElement("canvas");
-        frameCanvas.width = width;
-        frameCanvas.height = width;
-
+        frameCanvas.width = w;
+        frameCanvas.height = w;
         const frameCtx = frameCanvas.getContext("2d");
         frameCtx.imageSmoothingEnabled = false;
-        frameCtx.clearRect(0, 0, width, width);
-        frameCtx.drawImage(gifImage, 0, -i * width);
-
+        frameCtx.drawImage(gifImage, 0, -i * w);
         gifFrames.push(frameCanvas);
         gifFramePreview.appendChild(frameCanvas);
       }
 
-      gifReady = true;
+      createGif(); // lance le GIF automatiquement avec le délai initial
     }
 
     function createGif() {
-      if (!gifReady || gifFrames.length === 0) {
-        alert("Tu dois d'abord importer une image correcte et découper les frames.");
-        return;
-      }
-
       const delay = parseInt(document.getElementById("gifDelay").value) || 200;
-
-      const gif = new GIF({
-        workers: 2,
-        quality: 1,
-        transparent: 0x00000000
-      });
+      const gif = new GIF({ workers: 2, quality: 1, transparent: 0x00000000 });
 
       gifFrames.forEach(frame => {
         gif.addFrame(frame, { delay: delay });
       });
 
-      gif.on('finished', function(blob) {
+      gif.on("finished", function(blob) {
         const url = URL.createObjectURL(blob);
         gifResult.src = url;
         gifResult.dataset.bloburl = url;
@@ -172,13 +140,13 @@
     }
 
     function downloadGif() {
-      if (!gifResult.src || !gifResult.dataset.bloburl) {
-        alert("Tu dois d'abord créer un GIF.");
+      const url = gifResult.dataset.bloburl;
+      if (!url) {
+        alert("Aucun GIF généré !");
         return;
       }
-
-      const a = document.createElement('a');
-      a.href = gifResult.dataset.bloburl;
+      const a = document.createElement("a");
+      a.href = url;
       a.download = "animation.gif";
       a.click();
     }
