@@ -122,22 +122,28 @@
       createGif(); // lance le GIF automatiquement avec le délai initial
     }
 
-    function createGif() {
-      const delay = parseInt(document.getElementById("gifDelay").value) || 200;
-      const gif = new GIF({ workers: 2, quality: 1, transparent: 0x00000000 });
+function createGif() {
+  const delay = parseInt(document.getElementById("gifDelay").value) || 200;
+  const gif = new GIF({ workers: 2, quality: 1, transparent: 0x00000000 });
 
-      gifFrames.forEach(frame => {
-        gif.addFrame(frame, { delay: delay });
-      });
+  const previews = gifFramePreview.querySelectorAll("canvas");
+  if (previews.length === 0) {
+    alert("Aucune image à animer !");
+    return;
+  }
 
-      gif.on("finished", function(blob) {
-        const url = URL.createObjectURL(blob);
-        gifResult.src = url;
-        gifResult.dataset.bloburl = url;
-      });
+  previews.forEach(canvas => {
+    gif.addFrame(canvas, { delay: delay });
+  });
 
-      gif.render();
-    }
+  gif.on("finished", function(blob) {
+    const url = URL.createObjectURL(blob);
+    gifResult.src = url;
+    gifResult.dataset.bloburl = url;
+  });
+
+  gif.render();
+}
 
     function downloadGif() {
       const url = gifResult.dataset.bloburl;
