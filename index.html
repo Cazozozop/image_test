@@ -25,6 +25,10 @@
       margin: 4px;
       border: 1px solid #444;
     }
+    #gifPreview {
+      margin-top: 1em;
+      image-rendering: pixelated;
+    }
   </style>
 </head>
 <body>
@@ -37,7 +41,7 @@
   <canvas id="canvas"></canvas>
 
   <hr style="margin-top: 4em; border-color: #555;">
-  <h2>Créer un GIF à partir d'une image découpée</h2>
+  <h2>Créer un GIF à partir d'une image découpée (par lignes)</h2>
   <input type="file" id="gifImageInput" accept="image/*">
   <input type="number" id="gifDelay" value="200" min="10"> ms
   <button onclick="createGif()">Créer GIF</button>
@@ -45,8 +49,11 @@
 
   <div id="framesPreview" style="margin-top: 1em;"></div>
   <canvas id="gifCanvas" style="display: none;"></canvas>
+  <div id="gifPreviewContainer">
+    <h3>Prévisualisation du GIF :</h3>
+    <img id="gifPreview" alt="Aperçu du GIF">
+  </div>
 
-  <!-- GIF.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
 
   <script>
@@ -107,14 +114,14 @@
       reader.onload = function (event) {
         gifImage = new Image();
         gifImage.onload = () => {
-          splitImageAndShowFrames();
+          splitImageByRows();
         };
         gifImage.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
 
-    function splitImageAndShowFrames() {
+    function splitImageByRows() {
       gifFrames = [];
       const preview = document.getElementById("framesPreview");
       preview.innerHTML = "";
@@ -123,28 +130,28 @@
       const ctx = canvas.getContext("2d");
       ctx.imageSmoothingEnabled = false;
 
-      canvas.width = 1;
-      canvas.height = gifImage.height;
+      canvas.width = gifImage.width;
+      const frameHeight = gifImage.width; // Hauteur d’une frame = largeur de l’image (ex: 8×16 → frames de 8×8)
+      const numFrames = Math.floor(gifImage.height / frameHeight);
+      canvas.height = frameHeight;
 
-      const frameCount = gifImage.width;
-      for (let i = 0; i < frameCount; i++) {
-        ctx.clearRect(0, 0, 1, gifImage.height);
-        ctx.drawImage(gifImage, i, 0, 1, gifImage.height, 0, 0, 1, gifImage.height);
+      for (let i = 0; i < numFrames; i++) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(gifImage, 0, i * frameHeight, canvas.width, frameHeight, 0, 0, canvas.width, frameHeight);
 
-        const frameData = ctx.getImageData(0, 0, 1, gifImage.height);
+        const frameData = ctx.getImageData(0, 0, canvas.width, frameHeight);
         gifFrames.push(frameData);
 
-        // Display frame preview
+        // Prévisualisation
         const previewCanvas = document.createElement("canvas");
         previewCanvas.className = "frame";
-        previewCanvas.width = 8; // zoom x8
-        previewCanvas.height = gifImage.height * 8;
+        previewCanvas.width = canvas.width * 8;
+        previewCanvas.height = frameHeight * 8;
         const pctx = previewCanvas.getContext("2d");
         pctx.imageSmoothingEnabled = false;
         pctx.putImageData(frameData, 0, 0);
         pctx.scale(8, 8);
         pctx.drawImage(canvas, 0, 0);
-
         preview.appendChild(previewCanvas);
       }
     }
@@ -153,29 +160,32 @@
       if (gifFrames.length === 0) return;
       const delay = parseInt(document.getElementById("gifDelay").value) || 200;
 
+      const width = gifImage.width;
+      const height = width; // hauteur d'une frame
+
       const gif = new GIF({
         workers: 2,
         quality: 1,
         transparent: 0x00000000,
-        width: 1,
-        height: gifImage.height,
+        width: width,
+        height: height,
       });
 
       const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = 1;
-      tempCanvas.height = gifImage.height;
+      tempCanvas.width = width;
+      tempCanvas.height = height;
       const tempCtx = tempCanvas.getContext("2d");
       tempCtx.imageSmoothingEnabled = false;
 
       for (const frame of gifFrames) {
-        tempCtx.clearRect(0, 0, 1, gifImage.height);
+        tempCtx.clearRect(0, 0, width, height);
         tempCtx.putImageData(frame, 0, 0);
         gif.addFrame(tempCtx, {copy: true, delay: delay});
       }
 
       gif.on('finished', function(blob) {
         generatedGif = URL.createObjectURL(blob);
-        alert("GIF généré !");
+        document.getElementById("gifPreview").src = generatedGif;
       });
 
       gif.render();
